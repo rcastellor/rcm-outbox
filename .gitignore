@@ -1,0 +1,16 @@
+# Binarios de las lambdas
+/bin/
+
+# Estado local de Pulumi
+infra/.pulumi/
+
+# Datos persistentes de floci
+local/data/
+
+# Go
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/

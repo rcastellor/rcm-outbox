@@ -1,0 +1,40 @@
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: rcm-outbox-floci
+    ports:
+      - "4566:4566"
+    volumes:
+      # Floci ejecuta Lambda en contenedores desechables, por lo que necesita el
+      # socket de Docker del host. Sin esto, invoke falla con
+      # "Failed to start Lambda container".
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_DEFAULT_REGION: us-east-1
+      FLOCI_STORAGE_MODE: persistent
+    networks:
+      local:
+        aliases:
+          - localhost.floci.io
+
+  floci-ui:
+    image: floci/floci-ui:latest
+    container_name: rcm-outbox-floci-ui
+    ports:
+      - "4500:4500"
+    environment:
+      PORT: "4500"
+      FLOCI_ENDPOINT: http://floci:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      - floci
+    networks:
+      - local
+
+networks:
+  local:
+    name: rcm-outbox-local

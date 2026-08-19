@@ -1,0 +1,14 @@
+go 1.25.13
+
+toolchain go1.25.13
+
+use (
+	./infra
+	./orders-api
+	./orders-stats-consumer
+	./orders-dispatcher
+	./orders-workers
+	./rcm-migrations
+	./rcm-platform
+	./test/e2e
+)

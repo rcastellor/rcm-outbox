@@ -1,0 +1,3 @@
+name: rcm-outbox-infra
+description: Infraestructura del monorepo rcm-outbox gestionada con Pulumi
+runtime: go

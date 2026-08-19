@@ -1,0 +1,11 @@
+config:
+  aws:region: us-east-1
+  database: |
+    {"skipFinalSnapshot": true}
+  topics: |
+    [
+      {"name": "rcm-outbox-orders.fifo", "fifo": true}
+    ]
+  worker: |
+    {"topicName": "rcm-outbox-orders.fifo", "batchSize": 100, "maxWorkers": 10, "maxAttempts": 5, "backoffBaseSeconds": 60, "maxBackoffSeconds": 480}
+encryptionsalt: v1:pjcq8Nf6aOI=:v1:jpNBwQPBTql6K+B7:PrxxHObJ7xh6PJBy+Q1LvoqIQpTrLw==
