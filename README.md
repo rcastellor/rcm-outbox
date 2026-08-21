@@ -127,6 +127,7 @@ En menos de un minuto el dispatcher encolará trabajos, los workers publicarán 
 | `make test-e2e` | Test e2e contra floci (requiere `up` + `build` + `infra-up` + `migrate`) |
 | `make migrate` | Invoca la Lambda `rcm-migrations` |
 | `make redrive QUEUE=<cola>` | Reencola los mensajes de una DLQ en su cola origen |
+| `make infra-init` | Inicializa el stack `dev` de Pulumi (backend local + `stack init`, solo la primera vez) |
 | `make infra-preview` / `infra-refresh` / `infra-up` / `infra-destroy` | Ciclo de vida de Pulumi (stack `dev`) |
 | `make clean` | Borra `bin/` |
 
