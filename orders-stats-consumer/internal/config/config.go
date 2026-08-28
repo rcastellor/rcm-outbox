@@ -11,6 +11,9 @@ type Config struct {
 	// StatsTableName es el nombre de la tabla DynamoDB donde se agregan los
 	// items comprados por cliente, producto y día.
 	StatsTableName string
+	// InboxTableName es el nombre de la tabla DynamoDB de deduplicación de
+	// eventos ya procesados (patrón inbox).
+	InboxTableName string
 }
 
 // Load lee la configuración desde las variables de entorno.
@@ -20,5 +23,10 @@ func Load() (*Config, error) {
 		return nil, errors.New("variable de entorno STATS_TABLE_NAME no definida")
 	}
 
-	return &Config{StatsTableName: table}, nil
+	inbox := os.Getenv("INBOX_TABLE_NAME")
+	if inbox == "" {
+		return nil, errors.New("variable de entorno INBOX_TABLE_NAME no definida")
+	}
+
+	return &Config{StatsTableName: table, InboxTableName: inbox}, nil
 }

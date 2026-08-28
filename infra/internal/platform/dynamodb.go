@@ -14,6 +14,9 @@ type TableArgs struct {
 	// RangeKey es el nombre del atributo de clave de ordenación (tipo String);
 	// vacío significa tabla solo con clave de partición.
 	RangeKey string
+	// TTLAttribute es el nombre del atributo numérico usado para la expiración
+	// automática de items (TTL); vacío significa sin TTL.
+	TTLAttribute string
 }
 
 // Table es una tabla DynamoDB on-demand con claves de tipo String.
@@ -53,6 +56,12 @@ func NewTable(ctx *pulumi.Context, name string, args *TableArgs, opts ...pulumi.
 	}
 	if args.RangeKey != "" {
 		tableArgs.RangeKey = pulumi.String(args.RangeKey)
+	}
+	if args.TTLAttribute != "" {
+		tableArgs.Ttl = &dynamodb.TableTtlArgs{
+			AttributeName: pulumi.StringPtr(args.TTLAttribute),
+			Enabled:       pulumi.BoolPtr(true),
+		}
 	}
 
 	table, err := dynamodb.NewTable(ctx, args.Name, tableArgs, pulumi.Parent(c))

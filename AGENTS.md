@@ -29,6 +29,7 @@ Do NOT run `go test ./...` from the repo root — there is no root package (work
 - floci runs Lambdas in disposable Docker containers, so it mounts `/var/run/docker.sock`; without it, invoke fails with "Failed to start Lambda container".
 - Endpoint `http://localhost:4566`, UI `http://localhost:4500`.
 - The Makefile exports `AWS_ENDPOINT_URL` + fake creds (`test`/`test`, `us-east-1`). Running `pulumi`, `aws`, or `go test` directly (outside `make`) targets real AWS unless you export these yourself.
+- floci's persisted state (`local/data/` + `floci-rds-db-*` volumes) can get corrupted between sessions (e.g. DynamoDB tables marked `.corrupt`, EventBridge scheduler not restored). Prefer `make reset-floci` when starting work; see [docs/floci-local.md](docs/floci-local.md) for the caveats and the cold-start flow.
 
 ## Pulumi
 - Stack `dev`, local backend (`pulumi login --local`), runtime Go.

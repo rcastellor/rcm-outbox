@@ -21,8 +21,8 @@ type StatsArgs struct {
 	TopicARN pulumi.StringInput
 }
 
-// Stats agrupa la cola de consumidores, la tabla de estadísticas y la Lambda
-// consumidora con su event source mapping.
+// Stats agrupa la cola de consumidores, la tabla de estadísticas, la tabla de
+// inbox (deduplicación) y la Lambda consumidora con su event source mapping.
 type Stats struct {
 	pulumi.ResourceState
 
@@ -30,6 +30,10 @@ type Stats struct {
 	TableName pulumi.StringOutput `pulumi:"tableName"`
 	// TableARN es el ARN de la tabla DynamoDB de estadísticas.
 	TableARN pulumi.StringOutput `pulumi:"tableARN"`
+	// InboxTableName es el nombre de la tabla DynamoDB de inbox (deduplicación).
+	InboxTableName pulumi.StringOutput `pulumi:"inboxTableName"`
+	// InboxTableARN es el ARN de la tabla DynamoDB de inbox (deduplicación).
+	InboxTableARN pulumi.StringOutput `pulumi:"inboxTableARN"`
 	// QueueARN es el ARN de la cola SQS de consumidores.
 	QueueARN pulumi.StringOutput `pulumi:"queueARN"`
 	// FunctionARN es el ARN de la Lambda consumidora.
@@ -65,18 +69,28 @@ func NewStats(ctx *pulumi.Context, name string, args *StatsArgs, opts ...pulumi.
 		return nil, err
 	}
 
+	inbox, err := platform.NewTable(ctx, "inbox", &platform.TableArgs{
+		Name:         config.DefaultStatsInboxTableName,
+		HashKey:      "pk",
+		TTLAttribute: "expiresAt",
+	}, pulumi.Parent(c))
+	if err != nil {
+		return nil, err
+	}
+
 	fn, err := platform.NewFunction(ctx, "consumer", &platform.FunctionArgs{
 		Name:   functionName,
 		Binary: "../bin/orders-stats-consumer",
 		Env: pulumi.StringMap{
 			"STATS_TABLE_NAME": table.TableName,
+			"INBOX_TABLE_NAME": inbox.TableName,
 		},
 		EventSourceARN: queue.QueueARN,
 		ExtraPolicies: []platform.ExtraPolicy{
 			{
-				Name:      "stats-update",
-				Actions:   []string{"dynamodb:UpdateItem"},
-				Resources: []pulumi.StringInput{table.TableARN},
+				Name:      "stats-write",
+				Actions:   []string{"dynamodb:TransactWriteItems"},
+				Resources: []pulumi.StringInput{table.TableARN, inbox.TableARN},
 			},
 		},
 	}, pulumi.Parent(c))
@@ -86,14 +100,18 @@ func NewStats(ctx *pulumi.Context, name string, args *StatsArgs, opts ...pulumi.
 
 	c.TableName = table.TableName
 	c.TableARN = table.TableARN
+	c.InboxTableName = inbox.TableName
+	c.InboxTableARN = inbox.TableARN
 	c.QueueARN = queue.QueueARN
 	c.FunctionARN = fn.FunctionARN
 
 	if err := ctx.RegisterResourceOutputs(c, pulumi.Map{
-		"tableName":   c.TableName,
-		"tableARN":    c.TableARN,
-		"queueARN":    c.QueueARN,
-		"functionARN": c.FunctionARN,
+		"tableName":      c.TableName,
+		"tableARN":       c.TableARN,
+		"inboxTableName": c.InboxTableName,
+		"inboxTableARN":  c.InboxTableARN,
+		"queueARN":       c.QueueARN,
+		"functionARN":    c.FunctionARN,
 	}); err != nil {
 		return nil, err
 	}

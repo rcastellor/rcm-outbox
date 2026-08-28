@@ -21,6 +21,9 @@ const (
 	// DefaultStatsTableName es la tabla DynamoDB donde el consumidor agrega los
 	// items comprados por cliente, producto y día.
 	DefaultStatsTableName = "rcm-outbox-stats"
+	// DefaultStatsInboxTableName es la tabla DynamoDB donde el consumidor
+	// registra los eventos ya procesados (patrón inbox) para deduplicar.
+	DefaultStatsInboxTableName = "rcm-outbox-stats-inbox"
 	// DefaultBatchSize es el tamaño de bloque de registros por invocación del worker.
 	DefaultBatchSize = 10
 	// DefaultMaxWorkers es el tope de instancias de worker que lanza el dispatcher.

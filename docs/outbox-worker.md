@@ -58,12 +58,13 @@ El target usa aws cli contra el endpoint activo (floci o AWS real según entorno
 
 ```json
 {
+  "id": "7a6a... (UUID del registro outbox)",
   "eventType": "CreatedOrder",
   "payload": { "...payload original del outbox..." }
 }
 ```
 
-El `eventType` permite al consumidor enrutar; el `payload` es el JSON original almacenado en la columna `payload` de `outbox`.
+El `id` es el UUID del registro `outbox` y permite a los consumidores deduplicar (patrón inbox); el `eventType` permite enrutar; el `payload` es el JSON original almacenado en la columna `payload` de `outbox`.
 
 ## Configuración
 
