@@ -1,4 +1,4 @@
-# rcm-outbox
+# Ejemplo de implementación del patrón Outbox en Golang
 
 Implementación de referencia del **patrón transactional outbox** en una arquitectura **serverless sobre AWS** (Lambda + Pulumi), escrita en Go.
 
