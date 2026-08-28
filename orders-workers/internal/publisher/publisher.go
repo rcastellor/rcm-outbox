@@ -22,9 +22,11 @@ func New(client *sns.Client, topicARN string) *Publisher {
 	return &Publisher{client: client, topicARN: topicARN}
 }
 
-// envelope es el formato del mensaje publicado en SNS: el tipo de evento más el
-// payload original del outbox.
+// envelope es el formato del mensaje publicado en SNS: el id del evento, su
+// tipo y el payload original del outbox. El id permite a los consumidores
+// deduplicar (patrón inbox).
 type envelope struct {
+	ID        string          `json:"id"`
 	EventType string          `json:"eventType"`
 	Payload   json.RawMessage `json:"payload"`
 }
@@ -35,6 +37,7 @@ type envelope struct {
 // MessageDeduplicationId.
 func (p *Publisher) Publish(ctx context.Context, evt domain.OutboxEvent) error {
 	msg, err := json.Marshal(envelope{
+		ID:        evt.ID,
 		EventType: evt.EventType,
 		Payload:   json.RawMessage(evt.Payload),
 	})

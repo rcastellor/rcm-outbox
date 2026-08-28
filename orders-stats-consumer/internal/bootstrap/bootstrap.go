@@ -29,6 +29,6 @@ func Load(ctx context.Context) (*handler.Handler, error) {
 	}
 	client := dynamodb.NewFromConfig(awsCfg)
 
-	agg := stats.New(client, cfg.StatsTableName, log)
+	agg := stats.New(client, cfg.StatsTableName, cfg.InboxTableName, log)
 	return handler.New(agg), nil
 }

@@ -60,6 +60,7 @@ func main() {
 		}
 
 		ctx.Export("statsTableName", statsDomain.TableName)
+		ctx.Export("statsInboxTableName", statsDomain.InboxTableName)
 
 		dispatchQueue, err := outbox.NewQueue(ctx, "dispatch", &outbox.QueueArgs{
 			QueueName:       config.DefaultDispatchQueueName,

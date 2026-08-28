@@ -4,6 +4,8 @@ Reference implementation of the **transactional outbox pattern** on a **serverle
 
 The problem it solves: when a service writes to its database and then publishes an event (e.g. to SNS), it can fail between both operations (the *dual-write problem*). The solution is to write the event to an `outbox` table **within the same transaction** as the business data, and publish it afterwards asynchronously and reliably.
 
+On the consumer side, the **inbox** pattern complements the outbox: each event is recorded by its `id` before being applied, guaranteeing *exactly-once* processing.
+
 > Spanish documentation: [README.md](README.md)
 
 ## Topology
@@ -32,6 +34,7 @@ flowchart TB
         subqdlq["SQS rcm-outbox-orders-stats-dlq.fifo"]
         consumer["Lambda orders-stats-consumer"]
         ddb[("DynamoDB rcm-outbox-stats")]
+        inbox[("DynamoDB rcm-outbox-stats-inbox")]
     end
 
     sm["Secrets Manager<br/>database-credentials"]
@@ -46,10 +49,11 @@ flowchart TB
     disp -- "SendMessageBatch (1 msg = 1 batch)" --> dq
     dq -- "event source mapping (BatchSize=1)" --> worker
     worker -- "claim / publish / ack-nack" --> db
-    worker -- "Publish (MessageGroupId = aggregate_id)" --> sns
+    worker -- "Publish {id, eventType, payload}<br/>(MessageGroupId = aggregate_id)" --> sns
     sns -- "raw subscription" --> subq
     subq -- "event source mapping (BatchSize=1)" --> consumer
-    consumer -- "ADD items per customer/product/day" --> ddb
+    consumer -- "TransactWriteItems (atomic):<br/>PUT inbox + ADD items" --> ddb
+    consumer -- "dedup by eventId<br/>(outbox id)" --> inbox
 
     dq -- "redrive policy (maxReceiveCount=3)" --> dqdlq
     subq -- "redrive policy (maxReceiveCount=3)" --> subqdlq
@@ -66,7 +70,8 @@ flowchart TB
 1. `orders-api` receives the request and, in **a single transaction**, inserts the order (and its lines) and the event into the `outbox` table.
 2. Every minute, EventBridge invokes the **dispatcher**, which counts pending records and enqueues one work message per required batch (bounded by `maxWorkers`).
 3. Each message triggers a **worker** that claims a block with `FOR UPDATE SKIP LOCKED`, publishes it to SNS outside of any transaction, and acks/nacks: success → `published`; failure → retry with exponential backoff + jitter, or `dead` (logical DLQ in the table) once attempts are exhausted.
-4. The SNS FIFO topic delivers to consumer queues (raw message delivery, ordering by `aggregate_id`).
+4. The SNS FIFO topic delivers the `{id, eventType, payload}` envelope to consumer queues (raw message delivery, ordering by `aggregate_id`).
+5. The consumer records the event `id` in the `rcm-outbox-stats-inbox` table and aggregates the items in the **same DynamoDB transaction** (`TransactWriteItems`): if the event already exists in the inbox, the transaction is discarded and the message is acknowledged with no effect (exactly-once processing).
 
 Full worker/dispatcher details in [docs/en/outbox-worker.md](docs/en/outbox-worker.md).
 
@@ -77,7 +82,7 @@ Full worker/dispatcher details in [docs/en/outbox-worker.md](docs/en/outbox-work
 | [`orders-api`](orders-api/) | Lambda | Orders CRUD API (API Gateway HTTP v2, payload 2.0). Writes the outbox event in the same tx. |
 | [`orders-dispatcher`](orders-dispatcher/) | Lambda | Counts pending records and enqueues publishing jobs into SQS. |
 | [`orders-workers`](orders-workers/) | Lambda | Claims outbox batches and publishes them to SNS with retries/backoff. |
-| [`orders-stats-consumer`](orders-stats-consumer/) | Lambda | Consumer of the events delivered via SNS→SQS: aggregates purchased items per customer, product and day into DynamoDB. |
+| [`orders-stats-consumer`](orders-stats-consumer/) | Lambda | Consumer of the events delivered via SNS→SQS: aggregates purchased items per customer, product and day into DynamoDB with deduplication via the **inbox** pattern (exactly-once). |
 | [`rcm-migrations`](rcm-migrations/) | Lambda | Applies embedded SQL migrations (advisory lock + `schema_migrations` table). Invoked manually. |
 | [`rcm-platform`](rcm-platform/) | Library | Shared code: `logger`, `config`, `secrets`, `database` (pgx pool). |
 | [`infra`](infra/) | IaC | Pulumi in Go: generic components (`internal/platform`) and per-domain composition (`internal/domains`). |
@@ -149,6 +154,7 @@ Conventions in [docs/en/config-conventions.md](docs/en/config-conventions.md); m
 
 - ✅ Complete producer: transactional write, on-demand dispatcher, worker with atomic claim, backoff/jitter and logical DLQ in the table.
 - ✅ Stats consumer (`orders-stats-consumer`): `orders-stats` queue, DynamoDB table and e2e test (`make test-e2e`).
+- ✅ Idempotent consumer: **inbox** pattern with a DynamoDB transaction (`TransactWriteItems`) to deduplicate by `eventId` (exactly-once).
 - ✅ SQS DLQs with redrive policy (`maxReceiveCount=3`) and re-processing via `make redrive QUEUE=<queue>`.
 - 🚧 CloudWatch alarms, log retention and tracing.
 - 🚧 Hardening: TLS on the DSN, pool sizing, idempotency on POST /orders.
