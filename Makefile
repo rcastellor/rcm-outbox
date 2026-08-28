@@ -19,7 +19,7 @@ export AWS_SECRET_ACCESS_KEY       := test
 export AWS_DEFAULT_REGION          := us-east-1
 export AWS_SKIP_METADATA_API_CHECK := true
 
-.PHONY: help up down logs ps build $(addprefix build-,$(MODULES)) test test-e2e lint migrate redrive \
+.PHONY: help up down reset-floci logs ps build $(addprefix build-,$(MODULES)) test test-e2e lint migrate redrive \
         infra-init infra-preview infra-up infra-destroy clean
 
 help: ## Muestra esta ayuda
@@ -30,6 +30,12 @@ up: ## Arranca floci + floci-ui en local
 
 down: ## Detiene floci + floci-ui
 	$(COMPOSE) -f $(COMPOSE_FILE) down
+
+reset-floci: ## Regenera floci desde cero (borra contenedores, volúmenes y datos); ver docs/floci-local.md
+	$(COMPOSE) -f $(COMPOSE_FILE) down
+	@docker ps -aq --filter "name=floci-" | xargs -r docker rm -f
+	@docker volume ls -q | grep '^floci-rds-db-' | xargs -r docker volume rm
+	@rm -rf local/data
 
 logs: ## Sigue los logs de floci + floci-ui
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f

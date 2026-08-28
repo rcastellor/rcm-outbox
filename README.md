@@ -97,14 +97,18 @@ Monorepo gestionado con [Go workspace](go.work); cada módulo es independiente (
 ## Quickstart (entorno local con floci)
 
 ```bash
+make reset-floci  # (al empezar a trabajar) regenera floci desde cero; ver docs/floci-local.md
 make up           # arranca floci + UI (http://localhost:4566 / http://localhost:4500)
 make build        # compila las Lambdas a bin/<módulo>/bootstrap
 make infra-init   # inicializa el stack dev de Pulumi (solo la primera vez)
+make infra-refresh # sincroniza el estado de Pulumi con floci (necesario tras reset-floci)
 make infra-up     # despliega toda la infraestructura
 make migrate      # aplica las migraciones pendientes vía la Lambda rcm-migrations
 ```
 
 El Makefile exporta `AWS_ENDPOINT_URL` y credenciales falsas para que todo (Pulumi, AWS CLI, tests) hable con floci y no con AWS real.
+
+> ⚠️ El estado persistido de floci puede corromperse entre sesiones (tablas DynamoDB marcadas `.corrupt`, scheduler de EventBridge sin restaurar). Al empezar a trabajar, prefiere `make reset-floci`; manual y puesta en marcha en [docs/floci-local.md](docs/floci-local.md).
 
 ### Probar el flujo completo
 
@@ -126,6 +130,7 @@ En menos de un minuto el dispatcher encolará trabajos, los workers publicarán 
 |---|---|
 | `make help` | Ayuda con todos los targets |
 | `make up` / `down` / `logs` / `ps` | Ciclo de vida de floci (Docker Compose) |
+| `make reset-floci` | Regenera floci desde cero (borra contenedores, volúmenes y `local/data`) |
 | `make build` | Compila todas las Lambdas (`GOOS=linux GOARCH=amd64 CGO_ENABLED=0`) |
 | `make test` | Tests unitarios de todos los módulos |
 | `make lint` | `go vet` sobre todos los módulos |
